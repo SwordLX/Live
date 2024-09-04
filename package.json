@@ -2,10 +2,11 @@
   "dependencies": {
     "express": "^4.18.2",
     "osc": "^2.4.4",
+    "peggy": "^4.0.3",
     "ws": "^8.14.2"
   },
   "scripts": {
     "start": "node server.js",
-    "buildParser": "npx peggy -o parser.js --extra-options \"{ exportVar:\"myparser\" }\" grammar.pegjs"
+    "buildParser": "npx peggy -o parser.js -e myparser --format globals grammar.pegjs"
   }
 }
