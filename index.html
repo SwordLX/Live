@@ -1,0 +1,88 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset='utf-8'>
+
+    <script src="https://cdn.jsdelivr.net/npm/osc/dist/osc-browser.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.15/lib/codemirror.js"></script>
+
+    <script src='parser.js'></script>
+
+    <link href="https://cdn.jsdelivr.net/npm/codemirror@5.65.15/lib/codemirror.css" rel="stylesheet"></script>
+  </head>
+  <body>
+    <textarea></textarea>
+  </body>
+  <script>
+    window.onload = function() {
+
+      function sendOSC(codeFromEditor) {
+        const lines = codeFromEditor.split('\n'); // Split the input into lines
+        lines.forEach(line => {
+          const trimmedLine = line.trim(); // Trim whitespace
+          if (trimmedLine !== '') { // Only process non-empty lines
+            executeLine(trimmedLine);
+          }
+        });
+      }
+
+      function executeLine(line) {
+        console.log(line);
+        let __args = line.split(',');
+        __args = __args.filter(a => a !== '');
+        console.log('args:', __args);
+
+        const address = '/' + __args[0] + '/' + __args[1];
+        let args = __args.slice(2);
+
+        args = args.map(a => {
+          const numbericValue = parseFloat(a);
+          const isFloat = a.includes('.');
+
+          const arg = {
+            type: isFloat ? 'f' : 'i',
+            //type: 'f',
+            value: numbericValue
+          };
+
+          return arg;
+        });
+        console.log(args)
+        oscPort.send({
+          address,
+          args
+        });
+      }
+
+          const myTextarea = document.querySelector('textarea')
+          CodeMirror.keyMap.playground =  {
+                fallthrough:'default',
+                'Ctrl-Enter'( cm )  { 
+                   const code = myparser.parse( cm.getValue() )
+                   console.log( 'code:', code )
+                   sendOSC( code ) 
+                },
+                'Shift-Enter'( cm ){
+                  const cursorLine = cm.getCursor().line;
+                  const lines = cm.getValue().split('\n');
+                  const line = lines[cursorLine];
+                  console.log(line);
+                  const code = myparser.parse(line);
+                  sendOSC(code)
+                }
+      }
+
+      const editor = CodeMirror.fromTextArea(myTextarea, {
+        lineNumbers: true,
+        mode:'javascript',
+        keyMap: 'playground'
+      });
+
+			const oscPort = new osc.WebSocketPort({
+					url: "ws://localhost:8081", // URL to your Web Socket server.
+					metadata: true
+			});
+			oscPort.open()
+    }
+</script>
+</html>
