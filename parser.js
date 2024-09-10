@@ -238,7 +238,7 @@ function peg$parse(input, options) {
   var peg$f5 = function(intValue) { return parseInt(intValue); };
   var peg$f6 = function(intValue) { return parseInt(intValue); };
   var peg$f7 = function() { return text(); };
-  var peg$f8 = function() { return +text(); };
+  var peg$f8 = function() { return text(); };
   var peg$f9 = function(x, y, z) { return [x, y, z]; };
   var peg$f10 = function(a1, a2, a3, a4) { return [a1, a2, a3, a4]; };
   var peg$currPos = options.peg$currPos | 0;

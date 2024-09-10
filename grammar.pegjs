@@ -52,7 +52,7 @@ integer
 
 // Define number
 number
-  = "-"?((digit+ "." digit*) / ("."? digit+ )) { return +text(); }
+  = "-"?((digit+ "." digit*) / ("."? digit+ )) { return text(); }
 
 // Define vector
 vector 
