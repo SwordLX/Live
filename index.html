@@ -36,16 +36,26 @@
         let args = __args.slice(2);
 
         args = args.map(a => {
+
           const numbericValue = parseFloat(a);
-          const isFloat = a.includes(".");
 
-          const arg = {
-            type: isFloat ? 'f' : 'i',
-            //type: 'f',
-            value: numbericValue
-          };
-
+          if(!isNaN(numbericValue)){
+            const isFloat = a.includes(".");
+            
+            const arg = {
+              type: isFloat ? 'f' : 'i',
+              value: numbericValue
+            };
+        
           return arg;
+        }
+        else{
+          return {
+            type: 's',
+            value: a
+          }
+        }
+
         });
         console.log(args)
         oscPort.send({
