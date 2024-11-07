@@ -2,14 +2,24 @@ program = commands: ( Command + _) + {
      return commands.join("");
 }
 
-Command = element: (defineCommand/groupFormationCommand/constructionCommand) _ ";" _ ?
+Command = element: (chain/groupFormationCommand/ManagerCommand/ObjectCommand/particleCommand) _ ";"? _
 { return element; }
 
-//command for define variable
-defineCommand 
-    = element: (variableName: variable _ "=" _ object chain)
-    { let selected = ["Object", "Definition", element[4], element[5]];
-      return selected; }
+//function and chain
+//define function chain
+chain = a:(_ function _ ("."/"&")? )+
+   { let elements = a.map (element => element[1]);
+     let result = [];
+      elements.forEach((el, index)=>{
+      result.push(el);
+      result.push("//");
+     })
+     return result;
+    }
+
+//define function
+function = ManagerCommand/ObjectCommand
+
 
 //define Group formation Function
 groupFormationCommand
@@ -17,76 +27,144 @@ groupFormationCommand
     { let selected = [element[0], element[2], element[4]];
        return selected; }
        
-//define command for building object in circle
-buildObjectsInCircleCommand
-    = element: ( "circle" variable "center" '(' _ vector _ ')' '.' "radius" '('_ number _')')
-    { let selected = [element[0], element[1], element[3]];
-      return selected;}
 
 //define command for Complex Construction
-constructionCommand = InitializeConstruction/constructionOperation
+ManagerCommand = constructionCommand/SpawnCommand/ShaderCommand/IterationCommand
+constructionCommand = constructionOperation/buildObjectsInCircleCommand/SetMeshCommand
+SpawnCommand = directionalSpawn;
+ShaderCommand = SetMaterialCommand/SetColorCommand;
+IterationCommand = moveSpawnLocation/setSpawnRotation/SetGapCommand
 
-//define command for Construction Mesh Initialization
-InitializeConstruction = "construction:" _ Base:objectTypeKeyword _ properties:(loc _ vector) _ material:assignMaterial?
-   {  let selected = ["construct", "setup", Base, properties[0], properties[2]];
-      if(material) selected.push(material);
-      return selected; }
 
 //define the struct of construction operation
-constructionOperation = rotate:rot _ angle:number _ rotateTime:positiveInterger _ objectNumber:positiveInterger _ gapLength:positiveNumber?_ 
+constructionOperation = rotate:rot _ angle:number _ rotateTime:positiveInteger _ objectNumber:positiveInteger _ gapLength:positiveNumber?_ 
    { if(angle>360.0) { angle = angle%360.0}
-     let selected = ["construct", "op", rotate, angle, rotateTime, objectNumber]; 
+     let selected = ["construct", rotate, angle, rotateTime, objectNumber]; 
      if(gapLength) { selected.push(gapLength);}
      return selected; }
 
-//define function chain
-chain = a:(_ function "."? )+
-   { return a.map (element => element[1]);}
+//define command for building object in circle
+buildObjectsInCircleCommand
+    = element: ( _ "radius" '('_ positiveNumber _')' _ '*' _ objectNumber: (positiveInteger) _ )
+    { let selected = ["create", "circle", element[4], element[10]];
+      return selected;}
 
-//define function
-function = functionFormat01/functionFormat02
+moveSpawnLocation = op:moveSymbol _ parameter: vector _ { return ["move", "position",parameter]; }
+setSpawnRotation = op:rot _ parameter:number _ { return ["rotate", op, parameter];}
+directionalSpawn = op:directionalSymbol _ parameter:positiveInteger _ { return [op, "create", parameter];}
 
-functionFormat01= functionName:keyword _ parameter:(list/vector/variable/number)  _
-    { 
-      let selected = [functionName, parameter];
-      return selected; }
+SetMaterialCommand = _ parameter: assignMaterial { return ["set", parameter]}
+SetMeshCommand = op: "=>" _ parameter: variable { return ["set", "mesh", parameter]; }
+SetGapCommand = op: "__" _ parameter: positiveNumber _ { return ["set","gaplength", parameter];}
+SetColorCommand = op: colorOp _ parameter: vector _ { return ["set", op, parameter]; }
 
-functionFormat02 = functionName:keyword '(' parameter:(list/vector/variable/number) _ ')' _
+
+moveSymbol = item:(_ "->"_ ) { return item[2] }
+directionalSymbol = forwardSymbol/backwardSymbol/leftwardSymbol/rightwardSymbol/upwardSymbol/downwardSymbol
+forwardSymbol = "::" { return "forward"; }
+backwardSymbol = "xx" { return "backward" ;}
+leftwardSymbol = "<<" { return "leftward";}
+rightwardSymbol = ">>" { return "rightward"; }
+upwardSymbol = "^^" { return "upward"; }
+downwardSymbol = "vv" { return "downward"; }
+
+//**************** Object Command ****************************/
+ObjectCommand = ObjectCommandRegion/NewObjectCommandRegion/SpecificObjectControlCommand/NewestObjectControlCommand
+//Control Object
+NewObjectCommandRegion = ids:lastObjects _ "{" _ commandGroup:(_ ObjectFunction _)* _"}"
+   {
+     let commands = commandGroup.map(arr=>arr[1]);
+     let result = [];
+     commands.forEach((command, index) =>{
+        result.push(ids, command, "//");
+     })
+     return result;
+   }
+
+ObjectCommandRegion = ids:idFormat _ "{" _ commandGroup: (_ ObjectFunction _ )* _ "}"
+   {
+     let commands = commandGroup.map(arr=>arr[1]);
+     let result = [];
+     ids.forEach((item, index) => {
+         commands.forEach(command => {
+            result.push("Object", command, item, "//");
+         })
+     })
+     
+     return result;
+   }
+
+//Control last group (the newest objects just be created)
+NewestObjectControlCommand = ids:lastObjects _ op2: objectOP _ parameter: objectParameter? _
+   {
+     let result = [];
+     result.push("LastGroup", op2);
+     if(parameter) { result.push(parameter);}
+     return result;
+   }
+
+//Control 
+SpecificObjectControlCommand = ids:idFormat _ op2:objectOP _ parameter: objectParameter? _
     {
-       let selected = [functionName, parameter];
-       return selected
+       let result = [];
+       ids.forEach( (item, index) => {
+          result.push("Object", op2, item);
+          if(parameter) { result.push(parameter);}
+          result.push("//");
+       })
+       return result;
     }
+//Object Function format
+ObjectFunction = op:objectOP _ parameter: objectParameter? _ ";"? _
+{
+    let result = [];
+    result.push(op);
+    if(parameter) { result.push(parameter);}
+    return result;
+}
 
-//define object function
-object = objectFormat01/objectFormat02
-
-objectFormat01 = objectType: objectTypeKeyword '('_ id:integer _ ')'? "."?
-    { let selected = [objectType, id];
-       return selected; }
-       
-objectFormat02 = objectType: objectTypeKeyword "."?
-     { return objectType;}
+idFormat = list/IDGroup
+objectOP = offsetSymbol/rot/rotRate/scale/assignMaterial/colorOp
+objectParameter = variable/vector/number
+offsetSymbol = "$" { return "offset";}
+lastObjects = "[...]" { return "LastGroup";}
 
 //define keyword
 keyword = "ID"/"speed"/"mat"/loc/rot/scale
 
-//define object type
-objectTypeKeyword = "particle"/"cube"/"sphere"/"cylinder"
-
 //define material assignment command
-assignMaterial = cm:"mat" _ "(" matName: (_ variable _) ")" _ 
-{  let selected = [cm, matName[1]];
+assignMaterial = op:(":") _  matName: (_ variable _)  _ 
+{  let selected = ["material" , matName[1]];
     return selected; }
 
+colorOp = _ "#" _ { return ["color"]}
 //define position symbol
 loc = ">"{ return "location";}
 
 //define rotation symbol
-rot = op: ("@x"/"@y"/"@")
-   { if(op == "@") { return "rotateZ"; }
-     else if(op == "@x") { return "rotateX"; }
-     else if(op == "@y") { return "rotateY"; }
+rot = op: ("@x"/"@y"/"@z")
+   { let result = ["direction"];
+     if(op == "@z") { result.push("Z"); }
+     else if(op == "@x") { result.push("X"); }
+     else if(op == "@y") { result.push("Y"); }
+     return result;
      }
+
+rotRate = op: ("@@x"/"@@y"/"@@z")
+  {let result = ["rotateRate"];
+     if(op == "@@z") { result.push("Z"); }
+     else if(op == "@@x") { result.push("X"); }
+     else if(op == "@@y") { result.push("Y"); }
+     return result;
+  }
+
+//particle related
+particleCommand = op:particleSymbol _ cm: particleOperation _ { return [op, cm];}
+
+particleOperation = SpawnParticle/MoveSpawnPosition
+SpawnParticle = op: "<....>" { return ["Spawn"]; }
+MoveSpawnPosition = op: "->" _ parameter: vector { return ["setSpawnPosition", parameter];}
+particleSymbol = "**" { return ["particle"] ;}
 
 //define scale symbol
 scale = "^" { return "scale"; }
@@ -95,9 +173,36 @@ scale = "^" { return "scale"; }
 variable = name :(number/word)+ { return text();}
 
 //define list
-list = "(" item:(  _ number _ ","* )+ ")"
+list = "[" item:(  _ number _ ","* )+ "]"
        { console.log(item);
          return item.map ( arr => arr[1]);}
+
+IDGroup = "[" item:( _ positiveIntegerRange _ ","*) + "]" _ rule: ("++" _ positiveInteger)?
+       { let result = [];
+         let filter = item.map(arr => arr[1]);
+         filter.forEach(element=>{
+            if(element.length<2) { result.push(element[0]);}
+            else{
+               let minValue = parseInt(element[0]);
+               let increment = 1;
+               if(rule) { increment = parseInt(rule[2]);}
+               for(let maxValue = parseInt(element[1]); minValue <= maxValue; minValue+= increment){
+                  console.log(minValue);
+                  result.push(minValue);
+               }
+            }
+         })
+          return result;
+       }
+
+//define positiveNumber range
+positiveIntegerRange = integer01: positiveInteger _ "~" _ integer02: positiveInteger
+        { let value01 = parseInt(integer01); 
+          let value02 = parseInt(integer02);
+          if(value01>value02){ return [value02, value01];}
+          else if(value01<value02) { return [value01, value02]}
+          else { return [value01];}
+          }
 
 //define vector
 vector 
@@ -112,7 +217,7 @@ positiveNumber = (([0-9]+ "." [0-9]*) / ("."? [0-9]+)) { return text(); }
 //define integer
 integer = "-"?[0-9]+
 { return text();}
-positiveInterger = [0-9]+
+positiveInteger = [0-9]+
 { return text();}
 
 //define word

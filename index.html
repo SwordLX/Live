@@ -1,7 +1,16 @@
 <!doctype html>
 <html>
   <head>
+    
     <meta charset='utf-8'>
+    <meta name="viewport">
+    <title>Illusia</title>
+    <style>
+      body{
+        background-color: rgba(0, 0, 0, 0.5);
+        color:white;
+      }
+    </style>
 
     <script src="https://cdn.jsdelivr.net/npm/osc/dist/osc-browser.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.15/lib/codemirror.js"></script>
@@ -11,7 +20,8 @@
     <link href="https://cdn.jsdelivr.net/npm/codemirror@5.65.15/lib/codemirror.css" rel="stylesheet"></script>
   </head>
   <body>
-    <textarea></textarea>
+    <label for = "message">Illusia Editor</label>
+    <textarea id="message" name="message" placeholder="Please write your codes here." style="background-color: transparent; color: white;"></textarea>
   </body>
   <script>
     window.onload = function() {
@@ -21,14 +31,24 @@
         lines.forEach(line => {
           const trimmedLine = line.trim(); // Trim whitespace
           if (trimmedLine !== '') { // Only process non-empty lines
-            executeLine(trimmedLine);
+            splitLines(trimmedLine);
           }
         });
       }
 
-      function executeLine(line) {
-        console.log(line);
-        let __args = line.split(',');
+      function splitLines(line){
+        const segments = line.split('//')
+        segments.forEach(segment => {
+          const trimmedSegment = segment.trim();
+          if(trimmedSegment !== '' && trimmedSegment !== ","){
+            executeSegment(segment)
+          }
+        })
+      }
+
+      function executeSegment(segment) {
+        console.log(segment);
+        let __args = segment.split(',');
         __args = __args.filter(a => a !== '');
         console.log('args:', __args);
 
@@ -71,6 +91,14 @@
                    const code = myparser.parse( cm.getValue() )
                    console.log( 'code:', code )
                    sendOSC( code ) 
+                   /* New */
+                  //  const lines = cm.getValue().split('\n');
+                  //  lines.forEach(line=>{
+                  //   const code = myparser.parse(line);
+                  //   console.log('line', line);
+                  //   sendOSC(code);
+                  //  })
+                   
                 },
                 'Shift-Enter'( cm ){
                   const cursorLine = cm.getCursor().line;
