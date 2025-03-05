@@ -2,7 +2,7 @@ program = commands: ( Command + _) + {
      return commands.join("");
 }
 
-Command = element: (chain/groupFormationCommand/ManagerCommand/ObjectCommand/particleCommand) _ ";"? _
+Command = element: (chain/ManagerCommand/ObjectCommand/SingleLoop) _ ";"? _
 { return element; }
 
 //function and chain
@@ -20,17 +20,28 @@ chain = a:(_ function _ ("."/"&")? )+
 //define function
 function = ManagerCommand/ObjectCommand
 
+//define loop
 
-//define Group formation Function
-groupFormationCommand
-    = element: (variableName: variable _ "=" _ list) 
-    { let selected = [element[0], element[2], element[4]];
-       return selected; }
-       
+SingleLoop = "Loop" "(" _ time:(positiveInteger) _ ")" _ "{" _ commandGroup:(_ SingleLoopElement _ ";"? _)* _ "}" _
+              {
+                let commands = commandGroup.map(arr=>arr[1]);
+                let result = [];
+                let max = parseInt(time);
+                let i = 0;
+                while(i<max)
+                {
+                   commands.forEach(command=>{
+                   result.push(command, "//");
+                   });
+                   i++;
+                }
+                return result;
+              }
+SingleLoopElement = directionalSpawn/setSpawnRotation/BuildCircleCommand/SingleLoop/ShaderCommand
 
 //define command for Complex Construction
 ManagerCommand = constructionCommand/SpawnCommand/ShaderCommand/IterationCommand
-constructionCommand = constructionOperation/buildObjectsInCircleCommand/SetMeshCommand
+constructionCommand = constructionOperation/BuildCircleCommand/SetMeshCommand
 SpawnCommand = directionalSpawn;
 ShaderCommand = SetMaterialCommand/SetColorCommand;
 IterationCommand = moveSpawnLocation/setSpawnRotation/SetGapCommand
@@ -44,23 +55,20 @@ constructionOperation = rotate:rot _ angle:number _ rotateTime:positiveInteger _
      return selected; }
 
 //define command for building object in circle
-buildObjectsInCircleCommand
-    = element: ( _ "radius" '('_ positiveNumber _')' _ '*' _ objectNumber: (positiveInteger) _ )
+BuildCircleCommand
+    = element: ( _ "O" '('_ positiveNumber _')' _ '*' _ objectNumber: (positiveInteger) _ )
     { let selected = ["create", "circle", element[4], element[10]];
       return selected;}
 
-moveSpawnLocation = op:moveSymbol _ parameter: vector _ { return ["move", "position",parameter]; }
+moveSpawnLocation = op:moveSymbol _ parameter: vector _ { return [op, "position",parameter]; }
 setSpawnRotation = op:rot _ parameter:number _ { return ["rotate", op, parameter];}
 directionalSpawn = op:directionalSymbol _ parameter:positiveInteger _ { return [op, "create", parameter];}
-
 SetMaterialCommand = _ parameter: assignMaterial { return ["set", parameter]}
 SetMeshCommand = op: "=>" _ parameter: variable { return ["set", "mesh", parameter]; }
 SetGapCommand = op: "__" _ parameter: positiveNumber _ { return ["set","gaplength", parameter];}
 SetColorCommand = op: colorOp _ parameter: vector _ { return ["set", op, parameter]; }
-
-
-moveSymbol = item:(_ "->"_ ) { return item[2] }
 directionalSymbol = forwardSymbol/backwardSymbol/leftwardSymbol/rightwardSymbol/upwardSymbol/downwardSymbol
+moveSymbol = item:(_ "->"_ ) { return "move"; }
 forwardSymbol = "::" { return "forward"; }
 backwardSymbol = "xx" { return "backward" ;}
 leftwardSymbol = "<<" { return "leftward";}
@@ -129,17 +137,13 @@ objectParameter = variable/vector/number
 offsetSymbol = "$" { return "offset";}
 lastObjects = "[...]" { return "LastGroup";}
 
-//define keyword
-keyword = "ID"/"speed"/"mat"/loc/rot/scale
-
 //define material assignment command
 assignMaterial = op:(":") _  matName: (_ variable _)  _ 
 {  let selected = ["material" , matName[1]];
     return selected; }
 
 colorOp = _ "#" _ { return ["color"]}
-//define position symbol
-loc = ">"{ return "location";}
+
 
 //define rotation symbol
 rot = op: ("@x"/"@y"/"@z")
@@ -157,14 +161,6 @@ rotRate = op: ("@@x"/"@@y"/"@@z")
      else if(op == "@@y") { result.push("Y"); }
      return result;
   }
-
-//particle related
-particleCommand = op:particleSymbol _ cm: particleOperation _ { return [op, cm];}
-
-particleOperation = SpawnParticle/MoveSpawnPosition
-SpawnParticle = op: "<....>" { return ["Spawn"]; }
-MoveSpawnPosition = op: "->" _ parameter: vector { return ["setSpawnPosition", parameter];}
-particleSymbol = "**" { return ["particle"] ;}
 
 //define scale symbol
 scale = "^" { return "scale"; }
@@ -213,16 +209,12 @@ vector
 number = "-"? (([0-9]+ "." [0-9]*) / ("."? [0-9]+)) { return text(); }
 //define positive number
 positiveNumber = (([0-9]+ "." [0-9]*) / ("."? [0-9]+)) { return text(); }
-
 //define integer
 integer = "-"?[0-9]+
 { return text();}
 positiveInteger = [0-9]+
 { return text();}
-
-//define word
 word = digit+ { return text();}
-
 digit = [a-zA-Z@]
 
 _ "whitespace"
